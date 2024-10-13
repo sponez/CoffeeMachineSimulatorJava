@@ -3,7 +3,6 @@ package coffee;
 public enum CoffeeType {
     ESPRESSO(
         new Coffee.Ingredient(CoffeeIngredientType.WATER, 250),
-        new Coffee.Ingredient(CoffeeIngredientType.MILK, 0),
         new Coffee.Ingredient(CoffeeIngredientType.COFFEE_BEANS, 16)
     ),
     LATTE(
