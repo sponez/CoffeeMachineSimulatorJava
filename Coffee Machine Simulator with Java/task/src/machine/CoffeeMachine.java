@@ -1,226 +1,125 @@
 package machine;
 
-import machine.coffee.Cappuccino;
-import machine.coffee.Espresso;
-import machine.coffee.Latte;
-
-import java.util.Scanner;
+import coffee.Coffee;
+import coffee.CoffeeIngredientType;
+import coffee.CoffeeType;
 
 public class CoffeeMachine {
-    private static class Message {
-        public final static String MENU = "Write action (buy, fill, take, clean, remaining, exit): ";
+    public static class Supply {
+        private final CoffeeIngredientType type;
+        private int amount;
 
-        public final static String CHOOSE_COFFEE_QUESTION =
-            "What do you want to buy? 1 - espresso, 2 - latte, 3 - cappuccino, back - to main menu: ";
+        Supply(CoffeeIngredientType type, int amount) {
+            this.type = type;
+            this.amount = amount;
+        }
 
-        public final static String[] NOT_ENOUGH_MESSAGES = {
-            "Sorry, not enough water!\n",
-            "Sorry, not enough milk!\n",
-            "Sorry, not enough coffee beans!\n",
-            "Sorry, not enough disposable cups!\n"
+        public CoffeeIngredientType getType() {
+            return this.type;
+        }
+
+        public int getAmount() {
+            return this.amount;
+        }
+
+        public void add(int amount) {
+            this.amount += amount;
+        }
+
+        public void reduce(int amount) {
+            this.amount -= amount;
+        }
+    }
+
+    public enum Product {
+        ESPRESSO(CoffeeType.ESPRESSO.instance(), 4),
+        LATTE(CoffeeType.LATTE.instance(), 7),
+        CAPPUCCINO(CoffeeType.CAPPUCCINO.instance(), 6);
+
+        private final Coffee coffee;
+        private final int price;
+
+        Product(Coffee coffee, int price) {
+            this.coffee = coffee;
+            this.price = price;
+        }
+
+        public Coffee getCoffee() {
+            return this.coffee;
+        }
+
+        public int getPrice() {
+            return this.price;
+        }
+    }
+
+    private final CoffeeMachineController controller;
+    private final Supply[] supplyStorage;
+    private int cupsRemain;
+    private int moneyCollected;
+    private int coffeeCupsDone;
+
+    public CoffeeMachine() {
+        controller = new CoffeeMachineController(this);
+        supplyStorage = new Supply[] {
+            new Supply(CoffeeIngredientType.WATER, 400),
+            new Supply(CoffeeIngredientType.MILK, 540),
+            new Supply(CoffeeIngredientType.COFFEE_BEANS, 120)
         };
-
-        public final static String SUCCESS_COFFEE = "I have enough resources, making you a coffee!\n";
-
-        public final static String[] FILL_QUESTIONS = {
-            "Write how many ml of water you want to add: ",
-            "Write how many ml of milk you want to add: ",
-            "Write how many grams of coffee beans you want to add: ",
-            "Write how many disposable cups you want to add: "
-        };
-
-        public final static String TAKE_MESSAGE = "I gave you $%d\n";
-
-        public final static String NEED_CLEANING = "I need cleaning!\n";
-        public final static String SUCCESS_CLEANING = "I have been cleaned!\n";
-
-        public final static String CURRENT_STATE = """
-            The coffee machine has:
-            %d ml of water
-            %d ml of milk
-            %d g of coffee beans
-            %d disposable cups
-            $%d of money
-            """;
+        cupsRemain = 9;
+        moneyCollected = 550;
+        coffeeCupsDone = 0;
     }
 
-    private enum Action {
-        BUY,
-        FILL,
-        TAKE,
-        CLEAN,
-        REMAINING,
-        EXIT
+    public Supply[] getSupplyStorage() {
+        return this.supplyStorage;
     }
 
-    private enum CoffeeType {
-        ESPRESSO,
-        LATTE,
-        CAPPUCCINO
+    public int getCupsRemain() {
+        return this.cupsRemain;
     }
 
-    private final static Scanner SCANNER = new Scanner(System.in);
-    private static final int[] SUPPLIES = new int[CoffeeIngredient.values().length];
+    public int getMoneyCollected() {
+        return this.moneyCollected;
+    }
 
-    private static int currentMoney;
-    private static int cupsCoffeeMade;
+    public int getCoffeeCupsDone() {
+        return this.coffeeCupsDone;
+    }
 
-    private static int getNextIntegerByQuestion(String question) {
-        for (;;) {
-            String integerString;
-            int integer;
+    public void start() {
+        controller.menu();
+    }
 
-            System.out.print(question);
-            integerString = SCANNER.nextLine();
-
-            try {
-                integer = Integer.parseInt(integerString);
-            } catch (NumberFormatException numberFormatException) {
-                System.out.println("ERROR");
-                continue;
-            }
-
-            if (integer < 0) {
-                System.out.println("ERROR");
-                continue;
-            }
-
-            return integer;
+    public void sellProduct(Product product) {
+        for (Supply supply: supplyStorage) {
+            int ingredientAmount = product.getCoffee().getIngredientAmount(supply.getType());
+            supply.reduce(ingredientAmount);
         }
+
+        --cupsRemain;
+        ++coffeeCupsDone;
+
+        moneyCollected += product.getPrice();
     }
 
-    private static CoffeeType getCoffeeTypeByQuestion() {
-        for (;;) {
-            String coffeeNumberString;
-
-            System.out.print(Message.CHOOSE_COFFEE_QUESTION);
-            coffeeNumberString = SCANNER.nextLine();
-
-            switch (coffeeNumberString) {
-                case "1":
-                    return CoffeeType.ESPRESSO;
-                case "2":
-                    return CoffeeType.LATTE;
-                case "3":
-                    return CoffeeType.CAPPUCCINO;
-                case "back":
-                    return null;
-                default:
-                    System.out.println("ERROR");
-                    break;
-            };
-        }
-    }
-
-    private static boolean checkPossibility(Coffee coffee) {
-        for (CoffeeIngredient supply: CoffeeIngredient.values()) {
-            int supplyNumber = supply.ordinal();
-
-            if (SUPPLIES[supplyNumber] < coffee.getIngredients()[supplyNumber]) {
-                System.out.print(Message.NOT_ENOUGH_MESSAGES[supplyNumber]);
-                return false;
+    public void addSupplies(Supply[] supplies, int newCups) {
+        for (Supply supply: supplies) {
+            switch (supply.getType()) {
+                case WATER -> this.supplyStorage[0].add(supply.getAmount());
+                case MILK -> this.supplyStorage[1].add(supply.getAmount());
+                case COFFEE_BEANS -> this.supplyStorage[2].add(supply.getAmount());
             }
         }
 
-        System.out.print(Message.SUCCESS_COFFEE);
-        return true;
+        this.cupsRemain += newCups;
     }
 
-    private static void buy() {
-        if (cupsCoffeeMade >= 10) {
-            System.out.println(Message.NEED_CLEANING);
-            return;
-        }
-
-        CoffeeType coffeeType = getCoffeeTypeByQuestion();
-
-        if (coffeeType == null) {
-            return;
-        }
-
-        Coffee coffee = switch (coffeeType) {
-            case ESPRESSO -> new Espresso();
-            case LATTE -> new Latte();
-            case CAPPUCCINO -> new Cappuccino();
-        };
-
-        if (checkPossibility(coffee)) {
-            for (CoffeeIngredient supply: CoffeeIngredient.values()) {
-                int supplyNumber = supply.ordinal();
-                SUPPLIES[supplyNumber] -= coffee.getIngredients()[supplyNumber];
-            }
-
-            currentMoney += coffee.getPrice();
-            ++cupsCoffeeMade;
-        }
+    public void extractMoney() {
+        this.moneyCollected = 0;
     }
 
-    private static void fill() {
-        for (CoffeeIngredient supply: CoffeeIngredient.values()) {
-            int supplyNumber = supply.ordinal();
-            SUPPLIES[supplyNumber] += getNextIntegerByQuestion(Message.FILL_QUESTIONS[supplyNumber]);
-        }
-    }
-
-    private static void take() {
-        System.out.printf(Message.TAKE_MESSAGE, currentMoney);
-        currentMoney = 0;
-    }
-
-    private static void clean() {
-        System.out.print(Message.SUCCESS_CLEANING);
-        cupsCoffeeMade = 0;
-    }
-
-    private static void remaining() {
-        System.out.printf(
-            Message.CURRENT_STATE,
-            SUPPLIES[CoffeeIngredient.WATER.ordinal()],
-            SUPPLIES[CoffeeIngredient.MILK.ordinal()],
-            SUPPLIES[CoffeeIngredient.COFFEE_BEANS.ordinal()],
-            SUPPLIES[CoffeeIngredient.CUPS.ordinal()],
-            currentMoney
-        );
-    }
-
-    private static void menu() {
-        for (;;) {
-            Action action;
-
-            System.out.print(Message.MENU);
-            try {
-                action = Action.valueOf(SCANNER.nextLine().toUpperCase());
-            } catch (IllegalArgumentException illegalArgumentException) {
-                System.out.println("ERROR");
-                continue;
-            }
-
-            switch (action) {
-                case BUY -> buy();
-                case FILL -> fill();
-                case TAKE -> take();
-                case CLEAN -> clean();
-                case REMAINING -> remaining();
-                case EXIT -> {
-                    return;
-                }
-            }
-        }
-    }
-
-    private static void initCoffeeMachine() {
-        SUPPLIES[0] = 400;
-        SUPPLIES[1] = 540;
-        SUPPLIES[2] = 120;
-        SUPPLIES[3] = 9;
-        currentMoney = 550;
-        cupsCoffeeMade = 0;
-    }
-
-    public static void main(String[] args) {
-        initCoffeeMachine();
-        menu();
-
-        SCANNER.close();
+    public void clean() {
+        this.coffeeCupsDone = 0;
     }
 }
